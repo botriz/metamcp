@@ -1,0 +1,35 @@
+name: MetaMCP Compose security checks
+
+on:
+  push:
+    branches:
+      - ai-dev
+      - "feat/**"
+  pull_request:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require secrets and private network bindings
+        run: |
+          ! grep -Eq 'POSTGRES_PASSWORD:.*:-' docker-compose.yml
+          ! grep -Eq 'BETTER_AUTH_SECRET:.*:-' docker-compose.yml
+          grep -q '127.0.0.1' docker-compose.yml
+          ! grep -q '9433:5432' docker-compose.yml
+          ! grep -q 'm3t4mcp' docker-compose.yml
+          ! grep -q 'your-super-secret-key-change-this-in-production' docker-compose.yml
+      - name: Validate Docker Compose interpolation
+        run: |
+          touch .env
+          POSTGRES_PASSWORD=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+          BETTER_AUTH_SECRET=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789 \
+          APP_URL=https://metamcp.example \
+          APP_BIND_ADDRESS=127.0.0.1 \
+          docker compose config --quiet
